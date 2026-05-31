@@ -4,29 +4,21 @@ import Foundation
 
 protocol WeatherAPIService { var source: WeatherSource { get }; func fetchWeather(for: Location) async throws -> RawWeatherData }
 
-// MARK: - Services
+// MARK: - Generic Mock Service
 
-struct HeFengService: WeatherAPIService {
-    let source = WeatherSource.hefeng
+struct MockWeatherService: WeatherAPIService {
+    let source: WeatherSource
+    let bias: MockDataGenerator.Bias
+    let delay: UInt64
+
     func fetchWeather(for loc: Location) async throws -> RawWeatherData {
-        try await Task.sleep(nanoseconds: 200_000_000)
-        return MockDataGenerator.generate(for: loc, bias: MockDataGenerator.Bias(temperatureOffset:0.5,humidityOffset:3,windSpeedOffset:-1,pressureOffset:2,conditionVariant:0), source: source)
+        try await Task.sleep(nanoseconds: delay)
+        return MockDataGenerator.generate(for: loc, bias: bias, source: source)
     }
 }
-struct AppleWeatherService: WeatherAPIService {
-    let source = WeatherSource.appleWeather
-    func fetchWeather(for loc: Location) async throws -> RawWeatherData {
-        try await Task.sleep(nanoseconds: 150_000_000)
-        return MockDataGenerator.generate(for: loc, bias: MockDataGenerator.Bias(temperatureOffset:-0.3,humidityOffset:-2,windSpeedOffset:0.5,pressureOffset:-1,conditionVariant:1), source: source)
-    }
-}
-struct WeatherChannelService: WeatherAPIService {
-    let source = WeatherSource.weatherChannel
-    func fetchWeather(for loc: Location) async throws -> RawWeatherData {
-        try await Task.sleep(nanoseconds: 180_000_000)
-        return MockDataGenerator.generate(for: loc, bias: MockDataGenerator.Bias(temperatureOffset:0.2,humidityOffset:-1,windSpeedOffset:1.5,pressureOffset:-0.5,conditionVariant:2), source: source)
-    }
-}
+
+// MARK: - Real Services
+
 struct OpenMeteoService: WeatherAPIService {
     let source = WeatherSource.openMeteo
     func fetchWeather(for loc: Location) async throws -> RawWeatherData {
@@ -73,17 +65,42 @@ struct OpenMeteoService: WeatherAPIService {
             hourlyForecast: hf, dailyForecast: dfc)
     }
 }
-struct OpenWeatherMapService: WeatherAPIService {
-    let source = WeatherSource.openWeatherMap
-    func fetchWeather(for loc: Location) async throws -> RawWeatherData {
-        try await Task.sleep(nanoseconds: 160_000_000)
-        return MockDataGenerator.generate(for: loc, bias: MockDataGenerator.Bias(temperatureOffset:-0.1,humidityOffset:1,windSpeedOffset:-0.5,pressureOffset:1.5,conditionVariant:3), source: source)
-    }
+
+// MARK: - All Services Registry
+
+func allWeatherServices() -> [WeatherAPIService] {
+    let m = MockWeatherService.self
+    return [
+        m.init(source: .hefeng, bias: .init(temperatureOffset:0.5, humidityOffset:3, windSpeedOffset:-1, pressureOffset:2, conditionVariant:0), delay: 200_000_000),
+        AppleWeatherService(),
+        m.init(source: .weatherChannel, bias: .init(temperatureOffset:0.2, humidityOffset:-1, windSpeedOffset:1.5, pressureOffset:-0.5, conditionVariant:2), delay: 180_000_000),
+        OpenMeteoService(),
+        m.init(source: .openWeatherMap, bias: .init(temperatureOffset:-0.1, humidityOffset:1, windSpeedOffset:-0.5, pressureOffset:1.5, conditionVariant:3), delay: 160_000_000),
+        m.init(source: .accuWeather, bias: .init(temperatureOffset:0.8, humidityOffset:-4, windSpeedOffset:2, pressureOffset:-2, conditionVariant:4), delay: 170_000_000),
+        m.init(source: .bom, bias: .init(temperatureOffset:0.3, humidityOffset:-2, windSpeedOffset:1, pressureOffset:1, conditionVariant:5), delay: 150_000_000),
+        m.init(source: .breezometer, bias: .init(temperatureOffset:-0.2, humidityOffset:0, windSpeedOffset:-2, pressureOffset:0, conditionVariant:6), delay: 140_000_000),
+        m.init(source: .cma, bias: .init(temperatureOffset:0.6, humidityOffset:2, windSpeedOffset:-1.5, pressureOffset:2.5, conditionVariant:7), delay: 190_000_000),
+        m.init(source: .dwd, bias: .init(temperatureOffset:-0.4, humidityOffset:1, windSpeedOffset:0.5, pressureOffset:-1, conditionVariant:8), delay: 155_000_000),
+        m.init(source: .eccc, bias: .init(temperatureOffset:-0.8, humidityOffset:3, windSpeedOffset:1, pressureOffset:-1.5, conditionVariant:9), delay: 165_000_000),
+        m.init(source: .eumetnet, bias: .init(temperatureOffset:-0.1, humidityOffset:-1, windSpeedOffset:0, pressureOffset:0.5, conditionVariant:10), delay: 175_000_000),
+        m.init(source: .ecmwf, bias: .init(temperatureOffset:0.1, humidityOffset:0, windSpeedOffset:-0.5, pressureOffset:-0.5, conditionVariant:11), delay: 145_000_000),
+        m.init(source: .imd, bias: .init(temperatureOffset:1.0, humidityOffset:5, windSpeedOffset:-2, pressureOffset:3, conditionVariant:12), delay: 185_000_000),
+        m.init(source: .inmet, bias: .init(temperatureOffset:0.7, humidityOffset:4, windSpeedOffset:-1, pressureOffset:1, conditionVariant:13), delay: 160_000_000),
+        m.init(source: .jma, bias: .init(temperatureOffset:-0.3, humidityOffset:1, windSpeedOffset:0.5, pressureOffset:1.5, conditionVariant:14), delay: 150_000_000),
+        m.init(source: .meteofrance, bias: .init(temperatureOffset:-0.5, humidityOffset:-2, windSpeedOffset:0, pressureOffset:-0.5, conditionVariant:15), delay: 155_000_000),
+        m.init(source: .noaa, bias: .init(temperatureOffset:0.0, humidityOffset:-3, windSpeedOffset:1.5, pressureOffset:-1, conditionVariant:16), delay: 140_000_000),
+        m.init(source: .smn, bias: .init(temperatureOffset:0.9, humidityOffset:3, windSpeedOffset:-1, pressureOffset:2, conditionVariant:17), delay: 180_000_000),
+        m.init(source: .tmd, bias: .init(temperatureOffset:1.2, humidityOffset:6, windSpeedOffset:-2.5, pressureOffset:2, conditionVariant:18), delay: 190_000_000),
+        m.init(source: .metoffice, bias: .init(temperatureOffset:-0.6, humidityOffset:-2, windSpeedOffset:0.5, pressureOffset:-1, conditionVariant:19), delay: 145_000_000),
+    ]
 }
-struct AccuWeatherService: WeatherAPIService {
-    let source = WeatherSource.accuWeather
+
+// MARK: - Apple Weather Service
+
+struct AppleWeatherService: WeatherAPIService {
+    let source = WeatherSource.appleWeather
     func fetchWeather(for loc: Location) async throws -> RawWeatherData {
-        try await Task.sleep(nanoseconds: 170_000_000)
-        return MockDataGenerator.generate(for: loc, bias: MockDataGenerator.Bias(temperatureOffset:0.8,humidityOffset:-4,windSpeedOffset:2,pressureOffset:-2,conditionVariant:4), source: source)
+        try await Task.sleep(nanoseconds: 150_000_000)
+        return MockDataGenerator.generate(for: loc, bias: MockDataGenerator.Bias(temperatureOffset:-0.3, humidityOffset:-2, windSpeedOffset:0.5, pressureOffset:-1, conditionVariant:1), source: source)
     }
 }

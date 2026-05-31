@@ -3,6 +3,7 @@ import SwiftUI
 struct SourceBreakdownView: View {
     let weather: UnifiedWeather
     @AppStorage("appLanguage") private var lang: AppLanguage = .chinese
+    @AppStorage("tempUnit") private var tempUnit: TemperatureUnit = .celsius
 
     var body: some View {
         let L = lang
@@ -13,7 +14,7 @@ struct SourceBreakdownView: View {
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundStyle(.secondary)
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
-                        Text(fmtTemp(weather.temperature))
+                        Text(fmtTemp(weather.temperature, tempUnit))
                             .font(.system(size: 44, weight: .thin, design: .rounded))
                         Text(conditionDisplay(weather.condition, L))
                             .font(.system(size: 18))
@@ -57,7 +58,7 @@ struct SourceBreakdownView: View {
                         if let d = c.data {
                             Divider().padding(.leading, 16)
                             VStack(spacing: 6) {
-                                sr("thermometer.medium", L == .chinese ? "温度" : "Temp", fmtTemp(d.temperature))
+                                sr("thermometer.medium", L == .chinese ? "温度" : "Temp", fmtTemp(d.temperature, tempUnit))
                                 sr("humidity.fill", L == .chinese ? "湿度" : "Humidity", "\(Int(d.humidity))%")
                                 sr("wind", L == .chinese ? "风速" : "Wind", "\(String(format:"%.1f",d.windSpeed)) km/h")
                                 sr("gauge.with.dots.needle.33percent", L == .chinese ? "气压" : "Pressure", "\(String(format:"%.0f",d.pressure)) hPa")

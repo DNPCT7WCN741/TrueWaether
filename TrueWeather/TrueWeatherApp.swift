@@ -35,6 +35,17 @@ enum ThemeMode: String, CaseIterable {
     }
 }
 
+enum TemperatureUnit: String, CaseIterable {
+    case celsius, fahrenheit
+
+    var label: String { self == .celsius ? "°C" : "°F" }
+    var next: TemperatureUnit { self == .celsius ? .fahrenheit : .celsius }
+
+    func convert(_ celsius: Double) -> Double {
+        self == .fahrenheit ? celsius * 9 / 5 + 32 : celsius
+    }
+}
+
 // MARK: - App Entry
 
 @main

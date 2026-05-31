@@ -5,37 +5,49 @@ import SwiftUI
 
 enum WeatherSource: String, CaseIterable, Codable {
     case hefeng, appleWeather, weatherChannel, openMeteo, openWeatherMap, accuWeather
+    case bom, breezometer, cma, dwd, eccc, eumetnet, ecmwf, imd, inmet, jma, meteofrance, noaa, smn, tmd, metoffice
 
     var name: String {
         switch self {
-        case .hefeng: "和风天气"
-        case .appleWeather: "Apple Weather"
-        case .weatherChannel: "The Weather Channel"
-        case .openMeteo: "Open-Meteo"
-        case .openWeatherMap: "OpenWeatherMap"
-        case .accuWeather: "AccuWeather"
+        case .hefeng: "和风天气"; case .appleWeather: "Apple Weather"
+        case .weatherChannel: "The Weather Channel"; case .openMeteo: "Open-Meteo"
+        case .openWeatherMap: "OpenWeatherMap"; case .accuWeather: "AccuWeather"
+        case .bom: "BOM"; case .breezometer: "BreezoMeter"
+        case .cma: "中国气象局"; case .dwd: "Deutscher Wetterdienst"
+        case .eccc: "ECCC"; case .eumetnet: "EUMETNET"
+        case .ecmwf: "ECMWF"; case .imd: "IMD"
+        case .inmet: "INMET"; case .jma: "気象庁"
+        case .meteofrance: "Météo-France"; case .noaa: "NOAA"
+        case .smn: "SMN"; case .tmd: "TMD"
+        case .metoffice: "Met Office"
         }
     }
 
     var shortName: String {
         switch self {
-        case .hefeng: "和风"
-        case .appleWeather: "Apple"
-        case .weatherChannel: "TWC"
-        case .openMeteo: "Meteo"
-        case .openWeatherMap: "OWM"
-        case .accuWeather: "Accu"
+        case .hefeng: "和风"; case .appleWeather: "Apple"; case .weatherChannel: "TWC"
+        case .openMeteo: "Meteo"; case .openWeatherMap: "OWM"; case .accuWeather: "Accu"
+        case .bom: "BOM"; case .breezometer: "Breezo"; case .cma: "CMA"
+        case .dwd: "DWD"; case .eccc: "ECCC"; case .eumetnet: "EUMETNET"
+        case .ecmwf: "ECMWF"; case .imd: "IMD"; case .inmet: "INMET"
+        case .jma: "JMA"; case .meteofrance: "Météo"; case .noaa: "NOAA"
+        case .smn: "SMN"; case .tmd: "TMD"; case .metoffice: "MetOffice"
         }
     }
 
     var systemImage: String {
         switch self {
-        case .hefeng: "leaf.circle.fill"
-        case .appleWeather: "apple.logo"
-        case .weatherChannel: "tv.circle.fill"
-        case .openMeteo: "globe.europe.africa.fill"
-        case .openWeatherMap: "map.circle.fill"
-        case .accuWeather: "sun.max.circle.fill"
+        case .hefeng: "leaf.circle.fill"; case .appleWeather: "apple.logo"
+        case .weatherChannel: "tv.circle.fill"; case .openMeteo: "globe.europe.africa.fill"
+        case .openWeatherMap: "map.circle.fill"; case .accuWeather: "sun.max.circle.fill"
+        case .bom: "globe.asia.australia.fill"; case .breezometer: "wind"
+        case .cma: "building.2.fill"; case .dwd: "flag.fill"
+        case .eccc: "snowflake"; case .eumetnet: "antenna.radiowaves.left.and.right"
+        case .ecmwf: "globe.europe.africa.fill"; case .imd: "sun.max.fill"
+        case .inmet: "globe.americas.fill"; case .jma: "cloud.fill"
+        case .meteofrance: "cloud.sun.fill"; case .noaa: "cloud.bolt.fill"
+        case .smn: "sun.horizon.fill"; case .tmd: "cloud.sun.rain.fill"
+        case .metoffice: "cloud.moon.fill"
         }
     }
 
@@ -47,6 +59,21 @@ enum WeatherSource: String, CaseIterable, Codable {
         case .openMeteo: Color(red: 0.263, green: 0.627, blue: 0.278)
         case .openWeatherMap: Color(red: 0.984, green: 0.549, blue: 0)
         case .accuWeather: Color(red: 0.957, green: 0.318, blue: 0.118)
+        case .bom: Color(red: 0, green: 0.2, blue: 0.55)
+        case .breezometer: Color(red: 0.2, green: 0.7, blue: 0.7)
+        case .cma: Color(red: 0.7, green: 0.1, blue: 0.1)
+        case .dwd: Color(red: 0.2, green: 0.2, blue: 0.25)
+        case .eccc: Color(red: 0.8, green: 0.15, blue: 0.15)
+        case .eumetnet: Color(red: 0.15, green: 0.2, blue: 0.6)
+        case .ecmwf: Color(red: 0.45, green: 0.2, blue: 0.65)
+        case .imd: Color(red: 0.9, green: 0.45, blue: 0.1)
+        case .inmet: Color(red: 0.1, green: 0.55, blue: 0.2)
+        case .jma: Color(red: 0.25, green: 0.25, blue: 0.55)
+        case .meteofrance: Color(red: 0, green: 0.3, blue: 0.65)
+        case .noaa: Color(red: 0, green: 0.15, blue: 0.4)
+        case .smn: Color(red: 0.15, green: 0.45, blue: 0.3)
+        case .tmd: Color(red: 0.75, green: 0.55, blue: 0.1)
+        case .metoffice: Color(red: 0.05, green: 0.3, blue: 0.2)
         }
     }
 }
@@ -131,7 +158,7 @@ func conditionDisplay(_ c: String, _ lang: AppLanguage) -> String { lang == .chi
 
 extension Double { func rounded(_ p: Int) -> Double { let m = pow(10, Double(p)); return (self * m).rounded() / m } }
 
-func fmtTemp(_ t: Double) -> String { String(format: "%.0f°", t) }
+func fmtTemp(_ t: Double, _ unit: TemperatureUnit = .celsius) -> String { String(format: "%.0f°", unit.convert(t)) }
 func fmtHour(_ d: Date) -> String { let f = DateFormatter(); f.dateFormat = "HH:mm"; return f.string(from: d) }
 func fmtDay(_ d: Date, _ lang: AppLanguage) -> String {
     let f = DateFormatter(); f.locale = Locale(identifier: lang == .chinese ? "zh_CN" : "en_US"); f.dateFormat = "EEE"

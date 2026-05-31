@@ -19,7 +19,7 @@ final class WeatherViewModel: NSObject, CLLocationManagerDelegate {
     var userLocationCity: Location?
     var locationStatus: LocationAuthStatus = .determining
 
-    private let services: [WeatherAPIService] = [HeFengService(), AppleWeatherService(), WeatherChannelService(), OpenMeteoService(), OpenWeatherMapService(), AccuWeatherService()]
+    private let services: [WeatherAPIService] = allWeatherServices()
     private let locationManager = CLLocationManager()
     private var locationAttempted = false
 

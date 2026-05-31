@@ -4,6 +4,7 @@ struct ContentView: View {
     @State private var vm = WeatherViewModel()
     @AppStorage("appLanguage") private var lang: AppLanguage = .chinese
     @AppStorage("themeMode") private var theme: ThemeMode = .system
+    @AppStorage("tempUnit") private var tempUnit: TemperatureUnit = .celsius
 
     var body: some View {
         NavigationStack {
@@ -30,13 +31,23 @@ struct ContentView: View {
                                 .foregroundStyle(.white)
                         }
                         ToolbarItem(placement: .navigationBarTrailing) {
-                            Button { lang = lang.next } label: {
-                                Text(lang.label)
-                                    .font(.system(size: 14, weight: .bold))
-                                    .foregroundStyle(.white)
-                                    .padding(.horizontal, 8).padding(.vertical, 4)
-                                    .background(.ultraThinMaterial)
-                                    .clipShape(Capsule())
+                            HStack(spacing: 8) {
+                                Button { tempUnit = tempUnit.next } label: {
+                                    Text(tempUnit.label)
+                                        .font(.system(size: 14, weight: .bold))
+                                        .foregroundStyle(.white)
+                                        .padding(.horizontal, 8).padding(.vertical, 4)
+                                        .background(.ultraThinMaterial)
+                                        .clipShape(Capsule())
+                                }
+                                Button { lang = lang.next } label: {
+                                    Text(lang.label)
+                                        .font(.system(size: 14, weight: .bold))
+                                        .foregroundStyle(.white)
+                                        .padding(.horizontal, 8).padding(.vertical, 4)
+                                        .background(.ultraThinMaterial)
+                                        .clipShape(Capsule())
+                                }
                             }
                         }
                     }
@@ -55,6 +66,7 @@ struct ContentView: View {
                         }
                         ToolbarItem(placement: .navigationBarTrailing) {
                             HStack(spacing: 12) {
+                                Button { tempUnit = tempUnit.next } label: { Text(tempUnit.label).font(.system(size: 15)) }
                                 Button { theme = theme.next } label: { Text(theme.label).font(.system(size: 15)) }
                                 Button { lang = lang.next } label: { Text(lang.label).font(.system(size: 15, weight: .bold)) }
                             }
@@ -91,6 +103,7 @@ struct ContentView: View {
                     .toolbar {
                         ToolbarItem(placement: .navigationBarTrailing) {
                             HStack(spacing: 12) {
+                                Button { tempUnit = tempUnit.next } label: { Text(tempUnit.label).font(.system(size: 15)) }
                                 Button { theme = theme.next } label: { Text(theme.label).font(.system(size: 15)) }
                                 Button { lang = lang.next } label: { Text(lang.label).font(.system(size: 15, weight: .bold)) }
                             }

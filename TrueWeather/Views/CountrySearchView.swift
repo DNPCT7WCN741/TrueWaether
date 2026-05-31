@@ -70,7 +70,7 @@ struct CountrySearchView: View {
                     .padding(.horizontal, 16)
                 }
             } else {
-                countryList
+                countryIndexedList
             }
 
             if let err = vm.errorMessage {
@@ -80,44 +80,80 @@ struct CountrySearchView: View {
         .background(Color(.systemGroupedBackground))
     }
 
-    private var countryList: some View {
-        let data = Dictionary(grouping: vm.allLocations) { $0.country }
-        let countries = data.map { (code, cities) -> CountryGroup in
-            let rep = cities.first!
-            return CountryGroup(code: code, flag: rep.countryFlag, nameZH: rep.countryZH, nameEN: rep.country, cities: cities)
-        }.sorted { $0.nameZH < $1.nameZH }
+    private var countryIndexedList: some View {
+        let sections = alphabetizedCountries
 
-        return ScrollView {
-            VStack(spacing: 0) {
-                ForEach(countries) { c in
-                    Button {
-                        withAnimation { vm.selectedCountry = c.code }
-                    } label: {
-                        HStack(spacing: 14) {
-                            Text(c.flag).font(.system(size: 30))
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text(lang == .chinese ? c.nameZH : c.nameEN)
-                                    .font(.system(size: 17, weight: .medium))
-                                Text("\(c.cities.count) \(lang == .chinese ? "个城市" : "cities")")
-                                    .font(.system(size: 13))
-                                    .foregroundStyle(.secondary)
+        return ScrollViewReader { proxy in
+            ZStack(alignment: .trailing) {
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        ForEach(sections, id: \.letter) { section in
+                            Section {
+                                ForEach(section.countries) { c in
+                                    Button {
+                                        withAnimation { vm.selectedCountry = c.code }
+                                    } label: {
+                                        HStack(spacing: 14) {
+                                            Text(c.flag).font(.system(size: 30))
+                                            VStack(alignment: .leading, spacing: 3) {
+                                                Text(lang == .chinese ? c.nameZH : c.nameEN)
+                                                    .font(.system(size: 17, weight: .medium))
+                                                Text("\(c.cities.count) \(lang == .chinese ? "个城市" : "cities")")
+                                                    .font(.system(size: 13))
+                                                    .foregroundStyle(.secondary)
+                                            }
+                                            Spacer()
+                                            Image(systemName: "chevron.right")
+                                                .font(.system(size: 13, weight: .semibold))
+                                                .foregroundStyle(.secondary.opacity(0.5))
+                                        }
+                                        .padding(.horizontal, 16).padding(.vertical, 12)
+                                        .padding(.trailing, -30)
+                                        .background(.ultraThinMaterial)
+                                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                                        .shadow(color: .black.opacity(0.03), radius: 3, y: 1)
+                                        .padding(.horizontal, 16).padding(.vertical, 3)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .id(c.code)
+                                }
+                            } header: {
+                                HStack {
+                                    Text(section.letter)
+                                        .font(.system(size: 13, weight: .semibold))
+                                        .foregroundStyle(.secondary)
+                                    Spacer()
+                                }
+                                .padding(.horizontal, 24).padding(.vertical, 8)
+                                .padding(.trailing, -30)
+                                .background(Color(.systemGroupedBackground))
                             }
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundStyle(.secondary.opacity(0.5))
                         }
-                        .padding(.horizontal, 16).padding(.vertical, 12)
-                        .background(.ultraThinMaterial)
-                        .clipShape(RoundedRectangle(cornerRadius: 14))
-                        .shadow(color: .black.opacity(0.03), radius: 3, y: 1)
-                        .padding(.horizontal, 16).padding(.vertical, 3)
                     }
-                    .buttonStyle(.plain)
+                    .padding(.top, 4).padding(.bottom, 20)
                 }
+
+                LetterIndexBar(letters: sections.map(\.letter)) { letter in
+                    if let section = sections.first(where: { $0.letter == letter }),
+                       let first = section.countries.first {
+                        withAnimation { proxy.scrollTo(first.code, anchor: .top) }
+                    }
+                }
+                .frame(width: 18)
+                .padding(.trailing, 3)
             }
-            .padding(.top, 4).padding(.bottom, 20)
         }
+    }
+
+    private var alphabetizedCountries: [(letter: String, countries: [CountryGroup])] {
+        let data = Dictionary(grouping: vm.allLocations) { $0.country }
+        let groups = data.map { (code, cities) -> CountryGroup in
+            let rep = cities.first!
+            return CountryGroup(code: code, flag: rep.countryFlag, nameZH: rep.countryZH, nameEN: countryDisplayName(code), cities: cities)
+        }
+        let dict = Dictionary(grouping: groups) { firstLetter($0.nameEN) }
+        return dict.map { ($0.key, $0.value.sorted { $0.nameEN < $1.nameEN }) }
+            .sorted { $0.0 < $1.0 }
     }
 
     private func cityButton(_ city: Location) -> some View {
@@ -140,6 +176,7 @@ struct CountrySearchView: View {
                     .foregroundStyle(.secondary.opacity(0.5))
             }
             .padding(.horizontal, 16).padding(.vertical, 12)
+                                        .padding(.trailing, -30)
             .background(.ultraThinMaterial)
             .clipShape(RoundedRectangle(cornerRadius: 14))
             .shadow(color: .black.opacity(0.03), radius: 3, y: 1)
@@ -147,4 +184,47 @@ struct CountrySearchView: View {
         }
         .buttonStyle(.plain)
     }
+}
+
+// MARK: - Letter Index Bar
+
+struct LetterIndexBar: View {
+    let letters: [String]
+    let onSelect: (String) -> Void
+
+    @State private var activeLetter: String?
+
+    var body: some View {
+        GeometryReader { geo in
+            VStack(spacing: 0) {
+                ForEach(letters, id: \.self) { letter in
+                    Text(letter)
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(activeLetter == letter ? .blue : .blue.opacity(0.6))
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            }
+            .padding(.vertical, 2)
+            .background(.ultraThinMaterial)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .gesture(
+                DragGesture(minimumDistance: 0, coordinateSpace: .local)
+                    .onChanged { value in
+                        let idx = min(max(0, Int(value.location.y / (geo.size.height / CGFloat(max(1, letters.count))))), letters.count - 1)
+                        let letter = letters[idx]
+                        if activeLetter != letter {
+                            activeLetter = letter
+                            onSelect(letter)
+                        }
+                    }
+                    .onEnded { _ in activeLetter = nil }
+            )
+            .sensoryFeedback(.selection, trigger: activeLetter)
+        }
+    }
+}
+
+func firstLetter(_ s: String) -> String {
+    let c = s.prefix(1).uppercased()
+    return (c >= "A" && c <= "Z") ? c : "#"
 }

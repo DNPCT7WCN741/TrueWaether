@@ -12,8 +12,9 @@ struct MockDataGenerator {
         let lat = location.latitude.magnitude; let isSouth = location.latitude < 0
         let peakDay = isSouth ? 355 : 172
         let daysFromPeak = Double((doy - peakDay + 365) % 365)
-        let seasonal = 15.0 * cos(daysFromPeak / 365.0 * 2 * .pi)
-        let latBase = 36.0 - lat * 0.65
+        let seasonalAmp = 2.0 + lat * 0.4
+        let seasonal = seasonalAmp * cos(daysFromPeak / 365.0 * 2 * .pi)
+        let latBase = 32.0 - lat * 0.55
         let baseTemp = latBase + seasonal + bias.temperatureOffset
         let temp = (baseTemp + Double.random(in: -1.5...1.5)).rounded(1)
         let fl = (baseTemp - 1.5 + Double.random(in: -1...1) + bias.temperatureOffset * 0.7).rounded(1)
@@ -45,7 +46,7 @@ struct MockDataGenerator {
         }
         let daily = (0..<7).map { d in
             let dd = cal.date(byAdding: .day, value: d, to: sod) ?? now
-            let adj = (doy + d - 1 + 365) % 365; let fs = 15*cos(Double(adj-peakDay)/365 * 2 * .pi)
+            let adj = (doy + d - 1 + 365) % 365; let fs = seasonalAmp*cos(Double(adj-peakDay)/365 * 2 * .pi)
             return DailyData(date: dd, highTemperature: (latBase+fs+bias.temperatureOffset+Double.random(in:0...3)).rounded(1),
                 lowTemperature: (latBase+fs+bias.temperatureOffset-Double.random(in:5...10)).rounded(1),
                 condition: conds[(d*7+bias.conditionVariant+13)%11], humidity: min(100,max(5,(60+Double.random(in:-10...10)+bias.humidityOffset).rounded())),

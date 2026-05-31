@@ -3,6 +3,7 @@ import SwiftUI
 struct WeatherMainView: View {
     let weather: UnifiedWeather; let location: Location; let vm: WeatherViewModel
     @AppStorage("appLanguage") private var lang: AppLanguage = .chinese
+    @AppStorage("tempUnit") private var tempUnit: TemperatureUnit = .celsius
 
     private var isNight: Bool { !isDaytime(lat: location.latitude, lon: location.longitude) }
 
@@ -50,14 +51,14 @@ struct WeatherMainView: View {
                 .font(.system(size: 72, weight: .thin))
                 .foregroundStyle(isNight ? .yellow.opacity(0.9) : .white)
                 .shadow(color: .black.opacity(0.15), radius: 8, y: 4)
-            Text(fmtTemp(weather.temperature))
+            Text(fmtTemp(weather.temperature, tempUnit))
                 .font(.system(size: 96, weight: .thin, design: .rounded))
                 .foregroundStyle(.white)
                 .shadow(color: .black.opacity(0.1), radius: 4, y: 2)
             Text(conditionDisplay(weather.condition, lang))
                 .font(.system(size: 22, weight: .medium))
                 .foregroundStyle(.white.opacity(0.9))
-            Text(lang == .chinese ? "体感温度 \(fmtTemp(weather.feelsLike))" : "Feels like \(fmtTemp(weather.feelsLike))")
+            Text(lang == .chinese ? "体感温度 \(fmtTemp(weather.feelsLike, tempUnit))" : "Feels like \(fmtTemp(weather.feelsLike, tempUnit))")
                 .font(.system(size: 16))
                 .foregroundStyle(.white.opacity(0.7))
             Text(lang == .chinese ? "数据来自 \(weather.availableSourceCount)/\(weather.totalSourceCount) 个数据源" : "Data from \(weather.availableSourceCount)/\(weather.totalSourceCount) sources")
@@ -78,7 +79,10 @@ struct WeatherMainView: View {
     }
 
     private var hourly: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        let now = Date(); let cal = Calendar.current; let ch = cal.component(.hour, from: now)
+        let reordered = Array(weather.hourlyForecast[ch...] + weather.hourlyForecast[..<ch])
+
+        return VStack(alignment: .leading, spacing: 12) {
             Text(lang == .chinese ? "逐小时预报" : "Hourly Forecast")
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundStyle(.white)
@@ -90,20 +94,21 @@ struct WeatherMainView: View {
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
-                        ForEach(weather.hourlyForecast.prefix(24)) { h in
+                        ForEach(Array(reordered.enumerated()), id: \.element.id) { idx, h in
+                            let isNow = idx == 0
                             VStack(spacing: 6) {
-                                Text(fmtHour(h.time))
-                                    .font(.system(size: 11, weight: .medium))
-                                    .foregroundStyle(.white.opacity(0.7))
+                                Text(isNow ? (lang == .chinese ? "现在" : "Now") : fmtHour(h.time))
+                                    .font(.system(size: 11, weight: isNow ? .bold : .medium))
+                                    .foregroundStyle(isNow ? .white : .white.opacity(0.7))
                                 Image(systemName: conditionIcon(h.condition))
                                     .font(.system(size: 18))
                                     .foregroundStyle(.white)
-                                Text(fmtTemp(h.temperature))
+                                Text(fmtTemp(h.temperature, tempUnit))
                                     .font(.system(size: 14, weight: .medium, design: .rounded))
                                     .foregroundStyle(.white)
                             }
                             .padding(.horizontal, 12).padding(.vertical, 10)
-                            .background(cardBg)
+                            .background(isNow ? Color.white.opacity(0.25) : cardBg)
                             .clipShape(RoundedRectangle(cornerRadius: 16))
                             .shadow(color: .black.opacity(0.06), radius: 4, y: 2)
                         }
@@ -136,14 +141,14 @@ struct WeatherMainView: View {
                                 .frame(width: 30)
                         } else { Spacer().frame(width: 30) }
                         Spacer()
-                        Text(fmtTemp(day.lowTemperature))
+                        Text(fmtTemp(day.lowTemperature, tempUnit))
                             .font(.system(size: 15))
                             .foregroundStyle(.white.opacity(0.6))
                             .frame(width: 36, alignment: .trailing)
                         RoundedRectangle(cornerRadius: 2)
                             .fill(LinearGradient(colors: [.blue,.green,.yellow,.orange], startPoint: .leading, endPoint: .trailing))
                             .frame(width: 50, height: 4)
-                        Text(fmtTemp(day.highTemperature))
+                        Text(fmtTemp(day.highTemperature, tempUnit))
                             .font(.system(size: 15, weight: .medium))
                             .foregroundStyle(.white)
                             .frame(width: 36, alignment: .trailing)
