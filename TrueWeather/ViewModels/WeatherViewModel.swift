@@ -19,6 +19,10 @@ final class WeatherViewModel: NSObject, CLLocationManagerDelegate {
     var userLocationCity: Location?
     var locationStatus: LocationAuthStatus = .determining
 
+    private var isChinese: Bool {
+        UserDefaults.standard.string(forKey: "appLanguage") == "chinese"
+    }
+
     private let services: [WeatherAPIService] = allWeatherServices()
     private let locationManager = CLLocationManager()
     private var locationAttempted = false
@@ -102,7 +106,7 @@ final class WeatherViewModel: NSObject, CLLocationManagerDelegate {
         let results = await fetchAllSources(for: loc)
         let unified = blendResults(location: loc, results: results, rawWeights: rawWeights)
         if unified.sourceContributions.allSatisfy({ !$0.isAvailable }) {
-            errorMessage = "所有数据源均无法获取天气数据，请检查网络后重试"
+            errorMessage = isChinese ? "所有数据源均无法获取天气数据，请检查网络后重试" : "All data sources unavailable. Check your network and try again."
         } else { unifiedWeather = unified }
         isLoading = false
     }
@@ -124,7 +128,7 @@ final class WeatherViewModel: NSObject, CLLocationManagerDelegate {
         }
         let contributions = results.map { r in SourceContribution(source: r.0, weight: rawWeights[r.0] ?? 0, effectiveWeight: eff[r.0] ?? 0, data: r.1, isAvailable: r.1 != nil) }
         guard !valid.isEmpty else {
-            return UnifiedWeather(temperature:0,feelsLike:0,humidity:0,windSpeed:0,windDirection:0,pressure:0,visibility:0,condition:"晴",uvIndex:0,hourlyForecast:[],dailyForecast:[],sourceContributions:contributions,effectiveWeights:[:],fetchTimestamp:Date())
+            return UnifiedWeather(temperature:0,feelsLike:0,humidity:0,windSpeed:0,windDirection:0,pressure:0,visibility:0,precipitationProbability:0,condition:"晴",uvIndex:0,hourlyForecast:[],dailyForecast:[],sourceContributions:contributions,effectiveWeights:[:],fetchTimestamp:Date())
         }
         func wa(_ vals: [(Double,Double)]) -> Double { let t = vals.reduce(0){$0+$1.0}; return t>0 ? vals.reduce(0){$0+$1.0*$1.1}/t : 0 }
         let temp = wa(valid.map{($0.1,$0.2.temperature)}); let fl = wa(valid.map{($0.1,$0.2.feelsLike)})
@@ -153,6 +157,7 @@ final class WeatherViewModel: NSObject, CLLocationManagerDelegate {
             var vc:[String:Double]=[:]; for(w,_,_,_,_,c) in vs {vc[c,default:0]+=w}
             return DailyData(date:prim!.2.dailyForecast[i].date,highTemperature:wa(vs.map{($0.0,$0.1)}),lowTemperature:wa(vs.map{($0.0,$0.2)}),condition:vc.max(by:{$0.value<$1.value})?.key ?? "晴",humidity:wa(vs.map{($0.0,$0.3)}),windSpeed:wa(vs.map{($0.0,$0.4)}),precipitationProbability:wa(pvs.map{($0.0,$0.1)}))
         }
-        return UnifiedWeather(temperature:temp,feelsLike:fl,humidity:hum,windSpeed:ws,windDirection:wd,pressure:pres,visibility:vis,condition:cond,uvIndex:uv,hourlyForecast:hourly,dailyForecast:daily,sourceContributions:contributions,effectiveWeights:eff,fetchTimestamp:Date())
+        let prec = wa(valid.compactMap { (s,w,d) in guard !d.dailyForecast.isEmpty else {return nil}; return (w, d.dailyForecast[0].precipitationProbability) })
+        return UnifiedWeather(temperature:temp,feelsLike:fl,humidity:hum,windSpeed:ws,windDirection:wd,pressure:pres,visibility:vis,precipitationProbability:prec,condition:cond,uvIndex:uv,hourlyForecast:hourly,dailyForecast:daily,sourceContributions:contributions,effectiveWeights:eff,fetchTimestamp:Date())
     }
 }

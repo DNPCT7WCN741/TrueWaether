@@ -38,16 +38,19 @@ struct WeatherMainView: View {
                 daily
                 sourceBar
                 refreshFooter
-            }.padding(.vertical, 12)
+            }
+            .padding(.vertical, 12)
+            .transition(.opacity)
         }
         .background(bgGradient.ignoresSafeArea())
         .scrollContentBackground(.hidden)
         .refreshable { await vm.fetchWeather() }
+        .animation(.easeInOut(duration: 0.5), value: weather.temperature)
     }
 
     private var header: some View {
         VStack(spacing: 6) {
-            Image(systemName: isNight ? "moon.stars.fill" : conditionIcon(weather.condition))
+            Image(systemName: conditionIcon(weather.condition, isNight: isNight))
                 .font(.system(size: 72, weight: .thin))
                 .foregroundStyle(isNight ? .yellow.opacity(0.9) : .white)
                 .shadow(color: .black.opacity(0.15), radius: 8, y: 4)
@@ -61,6 +64,7 @@ struct WeatherMainView: View {
             Text(lang == .chinese ? "体感温度 \(fmtTemp(weather.feelsLike, tempUnit))" : "Feels like \(fmtTemp(weather.feelsLike, tempUnit))")
                 .font(.system(size: 16))
                 .foregroundStyle(.white.opacity(0.7))
+            sunriseSunsetRow
             Text(lang == .chinese ? "数据来自 \(weather.availableSourceCount)/\(weather.totalSourceCount) 个数据源" : "Data from \(weather.availableSourceCount)/\(weather.totalSourceCount) sources")
                 .font(.system(size: 12))
                 .foregroundStyle(.white.opacity(0.5))
@@ -69,12 +73,31 @@ struct WeatherMainView: View {
         .frame(maxWidth: .infinity)
     }
 
+    private var sunriseSunsetRow: some View {
+        let ss = sunriseSunset(lat: location.latitude, lon: location.longitude)
+        let df = DateFormatter(); df.dateFormat = "HH:mm"
+        return HStack(spacing: 16) {
+            HStack(spacing: 4) {
+                Image(systemName: "sunrise.fill").font(.system(size: 12))
+                Text(df.string(from: ss.sunrise))
+            }
+            HStack(spacing: 4) {
+                Image(systemName: "sunset.fill").font(.system(size: 12))
+                Text(df.string(from: ss.sunset))
+            }
+        }
+        .font(.system(size: 13))
+        .foregroundStyle(.white.opacity(0.55))
+    }
+
     private var metrics: some View {
         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
             MetricCard(icon:"humidity.fill", label: lang == .chinese ? "湿度" : "Humidity", value:"\(Int(weather.humidity))%", color:.blue, bg: cardBg)
-            MetricCard(icon:"wind", label: lang == .chinese ? "风速" : "Wind", value:"\(String(format:"%.1f",weather.windSpeed)) km/h", color:.teal, bg: cardBg)
+            MetricCard(icon:"wind", label: lang == .chinese ? "风速" : "Wind", value:"\(String(format:"%.1f",weather.windSpeed)) km/h \(windDirectionText(weather.windDirection))", color:.teal, bg: cardBg)
             MetricCard(icon:"gauge.with.dots.needle.33percent", label: lang == .chinese ? "气压" : "Pressure", value:"\(String(format:"%.0f",weather.pressure)) hPa", color:.orange, bg: cardBg)
             MetricCard(icon:"eye.fill", label: lang == .chinese ? "能见度" : "Visibility", value:"\(String(format:"%.1f",weather.visibility)) km", color:.indigo, bg: cardBg)
+            MetricCard(icon:"drop.fill", label: lang == .chinese ? "降水概率" : "Precip.", value:"\(Int(weather.precipitationProbability))%", color:.cyan, bg: cardBg)
+            MetricCard(icon:"sun.max.fill", label: lang == .chinese ? "紫外线" : "UV Index", value:"\(weather.uvIndex)", color:.yellow, bg: cardBg)
         }.padding(.horizontal, 16)
     }
 
@@ -96,16 +119,30 @@ struct WeatherMainView: View {
                     HStack(spacing: 8) {
                         ForEach(Array(reordered.enumerated()), id: \.element.id) { idx, h in
                             let isNow = idx == 0
+                            let trend: String = {
+                                guard idx + 1 < reordered.count else { return "" }
+                                let diff = reordered[idx + 1].temperature - h.temperature
+                                if diff > 0.5 { return "↑" }
+                                if diff < -0.5 { return "↓" }
+                                return ""
+                            }()
                             VStack(spacing: 6) {
                                 Text(isNow ? (lang == .chinese ? "现在" : "Now") : fmtHour(h.time))
                                     .font(.system(size: 11, weight: isNow ? .bold : .medium))
                                     .foregroundStyle(isNow ? .white : .white.opacity(0.7))
-                                Image(systemName: conditionIcon(h.condition))
+                                Image(systemName: conditionIcon(h.condition, isNight: isNight))
                                     .font(.system(size: 18))
                                     .foregroundStyle(.white)
-                                Text(fmtTemp(h.temperature, tempUnit))
-                                    .font(.system(size: 14, weight: .medium, design: .rounded))
-                                    .foregroundStyle(.white)
+                                HStack(spacing: 2) {
+                                    Text(fmtTemp(h.temperature, tempUnit))
+                                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                                        .foregroundStyle(.white)
+                                    if !trend.isEmpty {
+                                        Text(trend)
+                                            .font(.system(size: 11))
+                                            .foregroundStyle(trend == "↑" ? .orange : .blue.opacity(0.8))
+                                    }
+                                }
                             }
                             .padding(.horizontal, 12).padding(.vertical, 10)
                             .background(isNow ? Color.white.opacity(0.25) : cardBg)
@@ -167,7 +204,9 @@ struct WeatherMainView: View {
     }
 
     private var sourceBar: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        let sorted = weather.sourceContributions.sorted(by: { $0.effectiveWeight > $1.effectiveWeight })
+        let displayed = Array(sorted.prefix(8))
+        return VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text(lang == .chinese ? "数据源贡献" : "Source Contributions")
                     .font(.system(size: 16, weight: .semibold))
@@ -180,18 +219,23 @@ struct WeatherMainView: View {
             }.padding(.horizontal, 16)
             GeometryReader { geo in
                 HStack(spacing: 2) {
-                    ForEach(weather.sourceContributions.sorted(by: { $0.effectiveWeight > $1.effectiveWeight })) { c in
+                    ForEach(Array(displayed)) { c in
                         if c.isAvailable { RoundedRectangle(cornerRadius: 2).fill(c.source.color).frame(width: max(0, geo.size.width * c.effectiveWeight - 2)) }
                     }
                 }
             }.frame(height: 6).clipShape(RoundedRectangle(cornerRadius: 3)).padding(.horizontal, 16)
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 2) {
-                ForEach(weather.sourceContributions.sorted(by: { $0.effectiveWeight > $1.effectiveWeight })) { c in
+                ForEach(Array(displayed)) { c in
                     HStack(spacing: 5) {
                         Circle().fill(c.source.color).frame(width: 7, height: 7)
                         Text(c.source.shortName).font(.system(size: 11)).foregroundColor(.white.opacity(0.7))
                         Text(String(format: "%.0f%%", c.contributionPercent)).font(.system(size: 11, weight: .medium)).foregroundColor(.white.opacity(0.9))
                     }.opacity(c.isAvailable ? 1 : 0.3)
+                }
+                if sorted.count > 8 {
+                    Text(lang == .chinese ? "+\(sorted.count - 8) 更多" : "+\(sorted.count - 8) more")
+                        .font(.system(size: 11))
+                        .foregroundColor(.white.opacity(0.5))
                 }
             }.padding(.horizontal, 16)
         }

@@ -121,7 +121,7 @@ struct SourceContribution: Identifiable {
 }
 
 struct UnifiedWeather {
-    let temperature, feelsLike, humidity, windSpeed, windDirection, pressure, visibility: Double
+    let temperature, feelsLike, humidity, windSpeed, windDirection, pressure, visibility, precipitationProbability: Double
     let condition: String
     let uvIndex: Int
     let hourlyForecast: [HourlyData]
@@ -145,8 +145,18 @@ func conditionEN(_ c: String) -> String {
     }
 }
 
-func conditionIcon(_ c: String) -> String {
-    switch c {
+func conditionIcon(_ c: String, isNight: Bool = false) -> String {
+    if isNight {
+        return switch c {
+        case "晴": "moon.stars.fill"; case "多云转晴": "cloud.moon.fill"
+        case "多云": "cloud.fill"; case "阴天": "smoke.fill"
+        case "雨": "cloud.moon.rain.fill"; case "雷暴": "cloud.bolt.rain.fill"
+        case "小雨": "cloud.drizzle.fill"; case "雾": "cloud.fog.fill"
+        case "大风": "wind"; case "霾": "moon.haze.fill"; case "雪": "cloud.snow.fill"
+        default: "moon.stars.fill"
+        }
+    }
+    return switch c {
     case "晴": "sun.max.fill"; case "多云转晴": "cloud.sun.fill"; case "多云": "cloud.fill"
     case "阴天": "smoke.fill"; case "雨": "cloud.rain.fill"; case "雷暴": "cloud.bolt.rain.fill"
     case "小雨": "cloud.drizzle.fill"; case "雾": "cloud.fog.fill"; case "大风": "wind"
@@ -165,6 +175,30 @@ func fmtDay(_ d: Date, _ lang: AppLanguage) -> String {
     return f.string(from: d)
 }
 func fmtTime(_ d: Date) -> String { let f = DateFormatter(); f.dateFormat = "HH:mm:ss"; return f.string(from: d) }
+
+func windDirectionText(_ degrees: Double) -> String {
+    let dirs = ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"]
+    return dirs[Int((degrees + 11.25) / 22.5) % 16]
+}
+
+func sunriseSunset(lat: Double, lon: Double, date: Date = Date()) -> (sunrise: Date, sunset: Date) {
+    let cal = Calendar.current
+    let doy = Double(cal.ordinality(of: .day, in: .year, for: date) ?? 180)
+    let dec = 23.45 * sin(2 * .pi / 365 * (doy - 81)) * .pi / 180
+    let latR = lat * .pi / 180
+    let cosHA = -tan(latR) * tan(dec)
+    let ha: Double
+    if cosHA >= 1 { ha = 0 }
+    else if cosHA <= -1 { ha = 12 }
+    else { ha = acos(cosHA) * 180 / .pi / 15 }
+    let b = 2 * .pi / 365 * (doy - 81)
+    let eot = 9.87 * sin(2 * b) - 7.53 * cos(b) - 1.5 * sin(b)
+    let noon = 12.0 - lon / 15.0 - eot / 60.0
+    let sod = cal.startOfDay(for: date)
+    let sunrise = sod.addingTimeInterval((noon - ha) * 3600)
+    let sunset = sod.addingTimeInterval((noon + ha) * 3600)
+    return (sunrise, sunset)
+}
 
 func isDaytime(lat: Double, lon: Double, date: Date = Date()) -> Bool {
     let cal = Calendar.current
